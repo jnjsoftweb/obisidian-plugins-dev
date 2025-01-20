@@ -17,5 +17,6 @@
   },
   "dependencies": {
     "turndown": "^7.1.2"
-  }
+  },
+  "type": "module"
 }

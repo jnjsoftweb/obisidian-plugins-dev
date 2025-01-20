@@ -1,49 +1,49 @@
-const { Plugin, Notice, PluginSettingTab, Setting, MarkdownRenderer } = require("obsidian");
-const path = require("path");
+const { Plugin, Notice, PluginSettingTab, Setting, MarkdownRenderer } = require('obsidian');
+const path = require('path');
 
 const DEFAULT_SETTINGS = {
-  rootDir: "33. RESOURCES/Lectures/class101",
-  baseUrl: "http://125.133.148.194:4000",
-  templateDir: "93. templates/class101",
-  lectureFolder: "lectures",
-  reviewFolder: "reviews",
-  noteFolder: "notes",
-  scriptFolder: "scripts",
-  classFolder: "classes",
-  overwrite: true
+  rootDir: '33. RESOURCES/Lectures/class101',
+  baseUrl: 'http://125.133.148.194:4000',
+  templateDir: '93. templates/class101',
+  lectureFolder: 'lectures',
+  reviewFolder: 'reviews',
+  noteFolder: 'notes',
+  scriptFolder: 'scripts',
+  classFolder: 'classes',
+  overwrite: true,
 };
 
 class Class101Plugin extends Plugin {
   async onload() {
     await this.loadSettings();
-    
-    console.log("Class101 플러그인이 로드되었습니다.");
-    
+
+    console.log('Class101 플러그인이 로드되었습니다.');
+
     // 설정 탭 추가
     this.addSettingTab(new Class101SettingTab(this.app, this));
-    
+
     // 명령어 추가
     this.addCommand({
-      id: "process-single-class",
-      name: "Process Single Class from Clipboard",
+      id: 'process-single-class',
+      name: 'Process Single Class from Clipboard',
       callback: () => this.processSingleClass(),
     });
 
     this.addCommand({
-      id: "process-all-classes",
-      name: "Process All Classes from Server",
+      id: 'process-all-classes',
+      name: 'Process All Classes from Server',
       callback: () => this.processAllClasses(),
     });
 
     this.addCommand({
-      id: "process-in-file",
-      name: "Process Classes from Current File",
+      id: 'process-in-file',
+      name: 'Process Classes from Current File',
       callback: () => this.processInFile(),
     });
   }
 
   onunload() {
-    console.log("Class101 플러그인이 언로드되었습니다.");
+    console.log('Class101 플러그인이 언로드되었습니다.');
   }
 
   async loadSettings() {
@@ -57,31 +57,31 @@ class Class101Plugin extends Plugin {
   // Class101 URL에서 classId를 추출하는 메서드
   extractClassId(url) {
     try {
-      console.log("URL 분석:", url);  // 디버깅을 위한 로그 추가
-      
+      console.log('URL 분석:', url); // 디버깅을 위한 로그 추가
+
       // '/'가 없는 경우 입력된 문자열을 classId로 간주
       if (!url.includes('/')) {
-        console.log("직접 입력된 classId:", url);
+        console.log('직접 입력된 classId:', url);
         return url;
       }
-      
+
       // class101.net/ko/classes/{classId} 형식의 URL 처리
-      if (url.includes("class101.net/ko/classes/")) {
-        const classId = url.split("classes/")[1].split("/")[0];
-        console.log("매칭된 classId:", classId);  // 디버깅을 위한 로그 추가
+      if (url.includes('class101.net/ko/classes/')) {
+        const classId = url.split('classes/')[1].split('/')[0];
+        console.log('매칭된 classId:', classId); // 디버깅을 위한 로그 추가
         return classId;
       }
 
       // class101.net/classes/{classId} 형식의 URL도 처리
-      if (url.includes("class101.net/classes/")) {
-        const classId = url.split("classes/")[1].split("/")[0];
-        console.log("매칭된 classId:", classId);  // 디버깅을 위한 로그 추가
+      if (url.includes('class101.net/classes/')) {
+        const classId = url.split('classes/')[1].split('/')[0];
+        console.log('매칭된 classId:', classId); // 디버깅을 위한 로그 추가
         return classId;
       }
 
       return null;
     } catch (error) {
-      console.error("URL 변환 오류:", error);
+      console.error('URL 변환 오류:', error);
       return null;
     }
   }
@@ -89,21 +89,20 @@ class Class101Plugin extends Plugin {
   async processSingleClass() {
     try {
       const clipText = await navigator.clipboard.readText();
-      console.log("클립보드 내용:", clipText);  // 디버깅을 위한 로그 추가
-      
+      console.log('클립보드 내용:', clipText); // 디버깅을 위한 로그 추가
+
       const classId = this.extractClassId(clipText);
-      console.log("추출된 classId:", classId);  // 디버깅을 위한 로그 추가
+      console.log('추출된 classId:', classId); // 디버깅을 위한 로그 추가
 
       if (!classId) {
-        new Notice("유효한 Class101 URL이 클립보드에 없습니다.");
+        new Notice('유효한 Class101 URL이 클립보드에 없습니다.');
         return;
       }
 
-      new Notice("강의 정보를 가져오고 있습니다...");
+      new Notice('강의 정보를 가져오고 있습니다...');
       await this.generateMarkdown(classId);
-      
     } catch (error) {
-      console.error("Error:", error);
+      console.error('Error:', error);
       new Notice(`강의 처리 중 오류가 발생했습니다: ${error.message}`);
     }
   }
@@ -117,17 +116,17 @@ class Class101Plugin extends Plugin {
       const [classesJson, categoriesJson, classInfo] = await Promise.all([
         this.fetchJson(`${jsonBaseUrl}/myclasses.json`),
         this.fetchJson(`${jsonBaseUrl}/categories.json`),
-        this.fetchJson(`${jsonBaseUrl}/classes/${classId}.json`)
+        this.fetchJson(`${jsonBaseUrl}/classes/${classId}.json`),
       ]);
 
       const lectures = Array.isArray(classInfo) ? classInfo : classInfo.lectures;
       // 테스트를 위해 lectures를 3개로 제한
-    //   const limitedLectures = lectures.slice(0, 7);
-    const limitedLectures = lectures;
+      //   const limitedLectures = lectures.slice(0, 7);
+      const limitedLectures = lectures;
       console.log(`테스트를 위해 ${limitedLectures.length}개의 강의만 처리합니다.`);
 
       const classData = classesJson.find((c) => c.classId === classId);
-      
+
       if (!classData) {
         throw new Error(`Class ID ${classId} not found in myclasses.json`);
       }
@@ -144,7 +143,7 @@ class Class101Plugin extends Plugin {
         reviews: path.join(basePath, this.settings.reviewFolder, sanitizedClassTitle),
         notes: path.join(basePath, this.settings.noteFolder, sanitizedClassTitle),
         scripts: path.join(basePath, this.settings.scriptFolder, sanitizedClassTitle),
-        classes: path.join(basePath, this.settings.classFolder)
+        classes: path.join(basePath, this.settings.classFolder),
       };
 
       // 필요한 폴더들 생성
@@ -158,7 +157,7 @@ class Class101Plugin extends Plugin {
         const lectureSlug = this.getLectureSlug(lecture);
         const noteTitle = `${lecture.sn.toString().padStart(3, '0')}_${this.sanitizeName(lecture.title)}`;
         noteTitles.push(noteTitle);
-        
+
         new Notice(`강의 처리 중: ${noteTitle}`);
 
         await this.processLecture({
@@ -171,7 +170,12 @@ class Class101Plugin extends Plugin {
           paths,
           htmlBaseUrl,
           prevNoteTitle: i > 0 ? noteTitles[i - 1] : null,
-          nextNoteTitle: i < limitedLectures.length - 1 ? `${limitedLectures[i + 1].sn.toString().padStart(3, '0')}_${this.sanitizeName(limitedLectures[i + 1].title)}` : null
+          nextNoteTitle:
+            i < limitedLectures.length - 1
+              ? `${limitedLectures[i + 1].sn.toString().padStart(3, '0')}_${this.sanitizeName(
+                  limitedLectures[i + 1].title
+                )}`
+              : null,
         });
       }
 
@@ -187,7 +191,6 @@ class Class101Plugin extends Plugin {
       await this.app.vault.create(classIndexPath, classIndexContent);
 
       new Notice(`${classTitle} 강의 처리가 완료되었습니다.`);
-
     } catch (error) {
       console.error('Error in generateMarkdown:', error);
       throw error;
@@ -205,14 +208,14 @@ class Class101Plugin extends Plugin {
       paths,
       htmlBaseUrl,
       prevNoteTitle,
-      nextNoteTitle
+      nextNoteTitle,
     } = data;
 
     // currentClassId와 currentLectureSlug 설정
     this.currentClassId = classId;
     this.currentLectureSlug = this.getLectureSlug(lecture);
 
-    const sourceURL = `https://class101.net/ko/classes/${classId}/lectures/${lecture.lectureId}`;
+    const source = `https://class101.net/ko/classes/${classId}/lectures/${lecture.lectureId}`;
     const lectureSlug = this.getLectureSlug(lecture);
 
     // 노트 내용 가져오기
@@ -220,13 +223,13 @@ class Class101Plugin extends Plugin {
     try {
       const noteUrl = `${htmlBaseUrl}/classes/${classId}/${lectureSlug}/materials/index.html`;
       const noteHtml = await this.fetchHtml(noteUrl);
-      
+
       // attachments 배열 생성
       const attachments = await this.fetchAttachments(classId, lectureSlug);
-      const fileNames = attachments.map(url => decodeURIComponent(url.split('/').pop()));
-      
+      const fileNames = attachments.map((url) => decodeURIComponent(url.split('/').pop()));
+
       noteContent = await this.convertHtmlToMarkdown(noteHtml, fileNames);
-      
+
       if (noteContent) {
         const noteFilePath = path.join(paths.notes, `${noteTitle}_note.md`);
         await this.createFileWithOverwriteCheck(noteFilePath, noteContent);
@@ -259,10 +262,10 @@ class Class101Plugin extends Plugin {
     const reviewTemplate = await this.getReviewTemplate();
     const videoUrl = `${this.settings.baseUrl}/lecture/class101/${sanitizedClassTitle}/${noteTitle}.mkv`;
     const reviewContent = reviewTemplate
-        .replace('{{lectureTitle}}', this.escapeYamlValue(lecture.title, true))
-        .replace('{{source}}', sourceURL)
-        .replace('{{videoUrl}}', videoUrl)
-        .replace('{{noteTitle}}', noteTitle);
+      .replace('{{lectureTitle}}', this.escapeYamlValue(lecture.title, true))
+      .replace('{{source}}', source)
+      .replace('{{videoUrl}}', videoUrl)
+      .replace('{{noteTitle}}', noteTitle);
     await this.createFileWithOverwriteCheck(reviewFilePath, reviewContent);
 
     // 메인 강의 마크다운 생성
@@ -270,13 +273,13 @@ class Class101Plugin extends Plugin {
       lecture,
       classTitle,
       noteTitle,
-      sourceURL,
+      source,
       category,
       sanitizedClassTitle,
       hasNoteContent: !!noteContent,
       prevNoteTitle,
       nextNoteTitle,
-      classId
+      classId,
     });
 
     const markdownPath = path.join(paths.lectures, `${noteTitle}.md`);
@@ -313,7 +316,7 @@ class Class101Plugin extends Plugin {
   async getCategory(classId) {
     try {
       const jsonBaseUrl = `${this.settings.baseUrl}/lecture/_repo/class101/json`;
-      
+
       // myclasses.json에서 classId에 해당하는 categoryId 찾기
       const myclasses = await this.fetchJson(`${jsonBaseUrl}/myclasses.json`);
       const classInfo = myclasses.find((c) => c.classId === classId);
@@ -321,16 +324,12 @@ class Class101Plugin extends Plugin {
 
       // subCategories.json에서 categoryId와 일치하는 subCategory 찾기
       const subCategories = await this.fetchJson(`${jsonBaseUrl}/subCategories.json`);
-      const subCategory = subCategories.find(
-        (sc) => sc.categoryId === classInfo.categoryId
-      );
+      const subCategory = subCategories.find((sc) => sc.categoryId === classInfo.categoryId);
       if (!subCategory) return '';
 
       // categories.json에서 ancestorId와 categoryId가 일치하는 category 찾기
       const categoriesData = await this.fetchJson(`${jsonBaseUrl}/categories.json`);
-      const category = categoriesData.find(
-        (c) => c.categoryId === subCategory.ancestorId
-      );
+      const category = categoriesData.find((c) => c.categoryId === subCategory.ancestorId);
       if (!category) return '';
 
       return `${category.title0}/${category.title}/${subCategory.title}`;
@@ -342,10 +341,10 @@ class Class101Plugin extends Plugin {
 
   sanitizeName(name) {
     return name
-      .replace(/\[/g, "(")
-      .replace(/\]/g, ")")
-      .replace(/[^\uAC00-\uD7A3a-zA-Z0-9_\(\)\<\>\s]/g, "")
-      .replace(/\s+/g, " ")
+      .replace(/\[/g, '(')
+      .replace(/\]/g, ')')
+      .replace(/[^\uAC00-\uD7A3a-zA-Z0-9_\(\)\<\>\s]/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
   }
 
@@ -370,9 +369,7 @@ class Class101Plugin extends Plugin {
   async getReviewTemplate() {
     try {
       const templatePath = `${this.settings.templateDir}/review.md`;
-      const templateContent = await this.app.vault.adapter.read(
-        templatePath
-      );
+      const templateContent = await this.app.vault.adapter.read(templatePath);
       return templateContent;
     } catch (error) {
       console.error('Error reading review template:', error);
@@ -405,16 +402,14 @@ tags:
   async getLectureTemplate() {
     try {
       const templatePath = `${this.settings.templateDir}/lecture.md`;
-      const templateContent = await this.app.vault.adapter.read(
-        templatePath
-      );
+      const templateContent = await this.app.vault.adapter.read(templatePath);
       return templateContent;
     } catch (error) {
       console.error('Error reading lecture template:', error);
       // 기본 템플릿 반환
       return `---
 title: {{title}}
-sourceURL: {{sourceURL}}
+source: {{source}}
 duration: {{duration}}
 category: {{category}}
 tags: {{tags}}
@@ -458,16 +453,15 @@ tags: {{tags}}
 
       const data = await response.json();
       console.log('Fetched data:', data);
-      
+
       if (!data.files || !Array.isArray(data.files)) {
         console.log('No files array in response');
         return [];
       }
 
       // '@'나 '.'으로 시작하는 파일 제외하고 필터링
-      const filteredFiles = data.files
-        .filter(file => !file.startsWith('@') && !file.startsWith('.'));
-      
+      const filteredFiles = data.files.filter((file) => !file.startsWith('@') && !file.startsWith('.'));
+
       console.log('Filtered files:', filteredFiles);
 
       return filteredFiles;
@@ -481,20 +475,20 @@ tags: {{tags}}
   // YAML 값의 특수문자를 이스케이프 처리하는 메서드
   escapeYamlValue(value, isTitle = false) {
     if (typeof value !== 'string') return value;
-    
+
     if (isTitle) {
       // title의 경우 큰따옴표를 작은따옴표로 변경하고 전체를 큰따옴표로 감싸기
       value = value.replace(/"/g, "'");
       return `"${value}"`;
     }
-    
+
     // 특수문자가 포함된 경우 따옴표로 감싸기
     if (/[[\]{}:,"'#|>&*!]/.test(value)) {
       // 따옴표 이스케이프
       value = value.replace(/"/g, '\\"');
       return `"${value}"`;
     }
-    
+
     return value;
   }
 
@@ -503,51 +497,45 @@ tags: {{tags}}
       lecture,
       classTitle,
       noteTitle,
-      sourceURL,
+      source,
       category,
       sanitizedClassTitle,
       hasNoteContent,
       prevNoteTitle,
       nextNoteTitle,
-      classId
+      classId,
     } = data;
 
-    const tags = category
-      ? `class101/${category.replace(/\s+/g, '')}`
-      : 'class101';
+    const tags = category ? `class101/${category.replace(/\s+/g, '')}` : 'class101';
 
     const videoUrl = `${this.settings.baseUrl}/lecture/class101/${sanitizedClassTitle}/${noteTitle}.mkv`;
 
     // 첨부 파일 목록 가져오기
     const lectureSlug = this.getLectureSlug(lecture);
     const attachments = await this.fetchAttachments(classId, lectureSlug);
-    const attachmentsList = attachments.length > 0
-      ? '\n' + attachments
-          .map((url) => {
-            const fileName = decodeURIComponent(url.split('/').pop());
-            return `  - "${fileName}"`;
-          })
-          .join('\n')
-      : '';
+    const attachmentsList =
+      attachments.length > 0
+        ? '\n' +
+          attachments
+            .map((url) => {
+              const fileName = decodeURIComponent(url.split('/').pop());
+              return `  - "${fileName}"`;
+            })
+            .join('\n')
+        : '';
 
     // 각종 링크 생성
-    const noteLink = hasNoteContent 
-      ? `[[${noteTitle}_note|수업 노트]]`
-      : '수업 노트 없음';
+    const noteLink = hasNoteContent ? `[[${noteTitle}_note|수업 노트]]` : '수업 노트 없음';
 
     const reviewLink = `[[${noteTitle}_review|리뷰 작성]]`;
 
     const scriptLink = `[[${noteTitle}_script|자막 보기]]`;
 
     // 이전/다음 강의 링크 생성
-    const prevLink = prevNoteTitle 
-      ? `[[${prevNoteTitle}|← 이전 강의]]`
-      : '';
-    const nextLink = nextNoteTitle
-      ? `[[${nextNoteTitle}|다음 강의 →]]`
-      : '';
+    const prevLink = prevNoteTitle ? `[[${prevNoteTitle}|← 이전 강의]]` : '';
+    const nextLink = nextNoteTitle ? `[[${nextNoteTitle}|다음 강의 →]]` : '';
     const navigationLinks = [prevLink, `[[${sanitizedClassTitle}|❖ 전체 목록]]`, nextLink]
-      .filter(link => link)
+      .filter((link) => link)
       .join(' | ');
 
     // 템플릿 가져오기
@@ -556,7 +544,7 @@ tags: {{tags}}
     // 템플릿 변수 치환 (frontmatter 값들은 이스케이프 처리)
     return template
       .replace('{{title}}', this.escapeYamlValue(lecture.title, true))
-      .replace('{{sourceURL}}', this.escapeYamlValue(sourceURL))
+      .replace('{{source}}', this.escapeYamlValue(source))
       .replace('{{duration}}', this.escapeYamlValue(this.formatDuration(lecture.duration)))
       .replace('{{category}}', this.escapeYamlValue(category))
       .replace('{{tags}}', this.escapeYamlValue(tags))
@@ -574,7 +562,10 @@ tags: {{tags}}
     const remainingSeconds = seconds % 60;
 
     if (hours > 0) {
-      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(
+        2,
+        '0'
+      )}`;
     }
     return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   }
@@ -646,16 +637,9 @@ tags: {{tags}}
   }
 
   createClassIndexContent(data) {
-    const {
-      classTitle,
-      noteTitles,
-      category,
-      sanitizedClassTitle,
-    } = data;
+    const { classTitle, noteTitles, category, sanitizedClassTitle } = data;
 
-    const lectureList = noteTitles.map(noteTitle => 
-      `### [[${noteTitle}]]`
-    ).join('\n\n');
+    const lectureList = noteTitles.map((noteTitle) => `### [[${noteTitle}]]`).join('\n\n');
 
     return `---
 title: ${classTitle}
@@ -676,13 +660,13 @@ ${lectureList}
       if (!/[ì|í|ë|ê|å|ã]/.test(text)) {
         return text;
       }
-      
+
       // ISO-8859-1로 잘못 해석된 UTF-8 문자를 다시 바이트로 변환
-      const bytes = text.split('').map(char => char.charCodeAt(0));
-      
+      const bytes = text.split('').map((char) => char.charCodeAt(0));
+
       // UTF-8로 디코딩
       const decoded = new TextDecoder('utf-8').decode(new Uint8Array(bytes));
-      
+
       return decoded;
     } catch (error) {
       console.error('Error fixing broken Korean:', error);
@@ -716,8 +700,11 @@ ${lectureList}
       for (let i = 0; i < attachmentHeaders.snapshotLength; i++) {
         const header = attachmentHeaders.snapshotItem(i);
         let currentNode = header;
-        while (currentNode && currentNode.nextElementSibling && 
-               !currentNode.nextElementSibling.textContent.trim().startsWith('수업 노트')) {
+        while (
+          currentNode &&
+          currentNode.nextElementSibling &&
+          !currentNode.nextElementSibling.textContent.trim().startsWith('수업 노트')
+        ) {
           const nextNode = currentNode.nextElementSibling;
           currentNode.parentNode.removeChild(currentNode);
           currentNode = nextNode;
@@ -730,13 +717,15 @@ ${lectureList}
       // 마크다운으로 변환
       const processNode = (node) => {
         if (!node) return '';
-        
-        if (node.nodeType === 3) { // 텍스트 노드
+
+        if (node.nodeType === 3) {
+          // 텍스트 노드
           const text = node.textContent.trim();
           return text ? text + ' ' : '';
         }
 
-        if (node.nodeType !== 1) { // 요소 노드가 아닌 경우
+        if (node.nodeType !== 1) {
+          // 요소 노드가 아닌 경우
           return '';
         }
 
@@ -745,7 +734,7 @@ ${lectureList}
 
         // 자식 노드들의 내용을 재귀적으로 처리
         const childContent = Array.from(node.childNodes)
-          .map(child => processNode(child))
+          .map((child) => processNode(child))
           .join('')
           .trim();
 
@@ -789,14 +778,16 @@ ${lectureList}
             result = src ? `![${alt}](${src})\n\n` : '';
             break;
           case 'ul':
-            result = Array.from(node.children)
-              .map(li => `- ${processNode(li)}`)
-              .join('\n\n') + '\n\n';
+            result =
+              Array.from(node.children)
+                .map((li) => `- ${processNode(li)}`)
+                .join('\n\n') + '\n\n';
             break;
           case 'ol':
-            result = Array.from(node.children)
-              .map((li, index) => `${index + 1}. ${processNode(li)}`)
-              .join('\n\n') + '\n\n';
+            result =
+              Array.from(node.children)
+                .map((li, index) => `${index + 1}. ${processNode(li)}`)
+                .join('\n\n') + '\n\n';
             break;
           case 'li':
             result = childContent;
@@ -825,18 +816,20 @@ ${lectureList}
 
       // 본문 내용을 마크다운으로 변환
       let markdown = '';
-      
+
       // 첨부 파일 섹션 추가 (있는 경우에만)
       if (attachments.length > 0) {
-        markdown += `### 첨부 파일\n\n${attachments.map(fileName => {
-          const encodedFileName = encodeURIComponent(fileName);
-          return `[${fileName}](${this.settings.baseUrl}/lecture/_repo/class101/html/classes/${this.currentClassId}/${this.currentLectureSlug}/files/${encodedFileName})`;
-        }).join('\n\n')}\n\n`;
+        markdown += `### 첨부 파일\n\n${attachments
+          .map((fileName) => {
+            const encodedFileName = encodeURIComponent(fileName);
+            return `[${fileName}](${this.settings.baseUrl}/lecture/_repo/class101/html/classes/${this.currentClassId}/${this.currentLectureSlug}/files/${encodedFileName})`;
+          })
+          .join('\n\n')}\n\n`;
       }
 
       // 수업 노트 섹션 추가
       markdown += '### 수업 노트\n\n';
-      
+
       // 전체 내용 처리 (수업 노트 제목 제외)
       const content = processNode(doc.body);
       markdown += content.replace(/### 수업 노트\n\n/g, '');
@@ -870,15 +863,15 @@ ${lectureList}
   async processAllClasses() {
     try {
       new Notice('서버에서 클래스 목록을 가져오는 중...');
-      
+
       // myclassIds.json 파일에서 classId 배열 가져오기
       const response = await fetch(`${this.settings.baseUrl}/lecture/_repo/class101/json/myclassIds.json`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const classIds = await response.json();
-      
+
       if (!Array.isArray(classIds) || classIds.length === 0) {
         new Notice('처리할 클래스가 없습니다.');
         return;
@@ -916,15 +909,15 @@ ${lectureList}
       // 파일 내용 읽기
       const content = await this.app.vault.read(activeFile);
       console.log('파일 내용:', content);
-      
+
       // 줄 단위로 분리하고 유효한 classId/URL만 필터링
-      const lines = content.split('\n')
-        .map(line => line.trim().replace(/\s+/g, '')); // 공백 제거
+      const lines = content.split('\n').map((line) => line.trim().replace(/\s+/g, '')); // 공백 제거
       console.log('분리된 줄:', lines);
 
-      const validLines = lines.filter(line => {
-        const isValid = line.length > 20 && // 20자 초과인 경우만 허용
-                       /^[a-zA-Z0-9\/:]+$/.test(line);
+      const validLines = lines.filter((line) => {
+        const isValid =
+          line.length > 20 && // 20자 초과인 경우만 허용
+          /^[a-zA-Z0-9\/:]+$/.test(line);
         console.log(`라인 "${line}": 길이=${line.length}, 유효성=${isValid}`);
         return isValid;
       });
@@ -970,15 +963,15 @@ class Class101SettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    
-    containerEl.createEl("h2", { text: "Class101 설정" });
+
+    containerEl.createEl('h2', { text: 'Class101 설정' });
 
     new Setting(containerEl)
-      .setName("루트 디렉토리")
-      .setDesc("Class101 강의 노트가 저장될 기본 경로입니다.")
+      .setName('루트 디렉토리')
+      .setDesc('Class101 강의 노트가 저장될 기본 경로입니다.')
       .addText((text) =>
         text
-          .setPlaceholder("예: 33. RESOURCES/Lectures/class101")
+          .setPlaceholder('예: 33. RESOURCES/Lectures/class101')
           .setValue(this.plugin.settings.rootDir)
           .onChange(async (value) => {
             this.plugin.settings.rootDir = value;
@@ -987,11 +980,11 @@ class Class101SettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("기본 URL")
-      .setDesc("Class101 API 서버의 기본 URL입니다.")
+      .setName('기본 URL')
+      .setDesc('Class101 API 서버의 기본 URL입니다.')
       .addText((text) =>
         text
-          .setPlaceholder("예: http://125.133.148.194:4000")
+          .setPlaceholder('예: http://125.133.148.194:4000')
           .setValue(this.plugin.settings.baseUrl)
           .onChange(async (value) => {
             this.plugin.settings.baseUrl = value;
@@ -1000,11 +993,11 @@ class Class101SettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("템플릿 디렉토리")
-      .setDesc("템플릿 파일들이 저장된 디렉토리 경로입니다.")
+      .setName('템플릿 디렉토리')
+      .setDesc('템플릿 파일들이 저장된 디렉토리 경로입니다.')
       .addText((text) =>
         text
-          .setPlaceholder("예: 93. templates/class101")
+          .setPlaceholder('예: 93. templates/class101')
           .setValue(this.plugin.settings.templateDir)
           .onChange(async (value) => {
             this.plugin.settings.templateDir = value;
@@ -1013,24 +1006,22 @@ class Class101SettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("파일 덮어쓰기")
-      .setDesc("파일이 이미 존재할 경우 덮어쓸지 여부를 설정합니다.")
+      .setName('파일 덮어쓰기')
+      .setDesc('파일이 이미 존재할 경우 덮어쓸지 여부를 설정합니다.')
       .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.overwrite)
-          .onChange(async (value) => {
-            this.plugin.settings.overwrite = value;
-            await this.plugin.saveSettings();
-          })
+        toggle.setValue(this.plugin.settings.overwrite).onChange(async (value) => {
+          this.plugin.settings.overwrite = value;
+          await this.plugin.saveSettings();
+        })
       );
 
     // 하위 디렉토리 설정
     const subDirs = [
-      { key: "lectureFolder", name: "강의", desc: "강의 파일" },
-      { key: "reviewFolder", name: "리뷰", desc: "리뷰 파일" },
-      { key: "noteFolder", name: "노트", desc: "노트 파일" },
-      { key: "scriptFolder", name: "자막", desc: "자막 파일" },
-      { key: "classFolder", name: "클래스", desc: "클래스 파일" }
+      { key: 'lectureFolder', name: '강의', desc: '강의 파일' },
+      { key: 'reviewFolder', name: '리뷰', desc: '리뷰 파일' },
+      { key: 'noteFolder', name: '노트', desc: '노트 파일' },
+      { key: 'scriptFolder', name: '자막', desc: '자막 파일' },
+      { key: 'classFolder', name: '클래스', desc: '클래스 파일' },
     ];
 
     subDirs.forEach(({ key, name, desc }) => {
@@ -1050,4 +1041,4 @@ class Class101SettingTab extends PluginSettingTab {
   }
 }
 
-module.exports = Class101Plugin; 
+module.exports = Class101Plugin;

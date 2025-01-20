@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "jnj-utils": "^0.0.18"
+  }
+}
