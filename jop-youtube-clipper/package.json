@@ -1,0 +1,24 @@
+{
+  "name": "jop-youtube-clipper",
+  "version": "1.0.0",
+  "description": "YouTube 정보, 자막, 요약을 파일로 저장하는 Obsidian 플러그인",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "youtube",
+    "clipper",
+    "summary"
+  ],
+  "author": "JnJ",
+  "license": "MIT",
+  "devDependencies": {
+    "builtin-modules": "^3.2.0",
+    "esbuild": "0.17.3",
+    "obsidian": "^1.4.11"
+  }
+}

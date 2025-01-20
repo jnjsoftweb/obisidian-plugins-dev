@@ -1,0 +1,6 @@
+# node
+node_modules/
+dist/
+
+# user, macos
+_*/

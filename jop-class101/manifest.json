@@ -1,0 +1,10 @@
+{
+  "id": "jop-class101",
+  "name": "Class101 Plugin",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Class101 강의 노트를 Obsidian에서 관리하기 위한 플러그인입니다.",
+  "author": "Your Name",
+  "authorUrl": "https://github.com/yourusername",
+  "isDesktopOnly": true
+}

@@ -1,0 +1,24 @@
+{
+  "name": "jop-aichat-clipper",
+  "version": "1.0.0",
+  "description": "Obsidian plugin to clip AI chat pages",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "ai",
+    "chat",
+    "clipper"
+  ],
+  "author": "JnJ-Soft",
+  "license": "MIT",
+  "devDependencies": {
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "^1.4.11"
+  }
+}

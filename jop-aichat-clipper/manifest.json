@@ -1,0 +1,10 @@
+{
+  "id": "jop-aichat-clipper",
+  "name": "AI Chat Clipper",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "AI 채팅 내용을 옵시디언 노트로 저장하는 플러그인",
+  "author": "JnJ-Soft",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}
