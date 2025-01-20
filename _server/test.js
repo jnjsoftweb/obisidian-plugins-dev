@@ -1,7 +1,8 @@
-import { saveFile } from "jnj-utils";
+import { saveFile } from 'jnj-utils';
 // import { convertClaudeHtmlToMarkdown } from "./turndown.js";
-import { fetchFromOpenai } from "./openai.js";
-import { fetchFromClaude } from "./claude.js";
+import { fetchFromOpenai } from './openai.js';
+import { fetchFromClaude } from './claude.js';
+import { fetchFromGenspark } from './genspark.js';
 
 // const targetUrl = "https://claude.ai/chat/a9d32c70-f740-4a54-ae5d-49ee72423018";
 // const result = await fetchFromClaude(targetUrl);
@@ -19,10 +20,17 @@ import { fetchFromClaude } from "./claude.js";
 // saveFile(`./downloads/openai_${title}.html`, content);
 // saveFile(`./downloads/openai_${title}.md`, markdown);
 
-// * Claude
-//
-const targetUrl = "https://claude.ai/chat/b911c05c-ea42-4f91-b536-b3b197e659ce";
-const result = await fetchFromClaude(targetUrl);
+// // * Claude
+// //
+// const targetUrl = 'https://claude.ai/chat/b911c05c-ea42-4f91-b536-b3b197e659ce';
+// const result = await fetchFromClaude(targetUrl);
+// const { title, content, markdown } = result;
+// saveFile(`./downloads/claude_${title}.html`, content);
+// saveFile(`./downloads/claude_${title}.md`, markdown);
+
+// * Genspark
+const targetUrl = 'https://www.genspark.ai/agents?id=39f72fcf-a452-4997-b5dc-4f5da8f0227a';
+const result = await fetchFromGenspark(targetUrl);
 const { title, content, markdown } = result;
-saveFile(`./downloads/claude_${title}.html`, content);
-saveFile(`./downloads/claude_${title}.md`, markdown);
+saveFile(`./downloads/genspark_${title}.html`, content);
+saveFile(`./downloads/genspark_${title}.md`, markdown);

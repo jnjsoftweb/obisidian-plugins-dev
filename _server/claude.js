@@ -126,27 +126,53 @@ const processUserMessage = (userMessageNode) => {
 // * fetch
 const fetchFromClaude = async (source, email = defaultEmail) => {
   chromeOptions.default.email = email;
-  const chrome = new Chrome(chromeOptions.default);
+  const chrome = new Chrome({
+    ...chromeOptions.default,
+    arguments: [
+      '--disable-gpu',
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled', // 자동화 감지 비활성화
+      '--disable-extensions', // 확장 프로그램 비활성화
+      '--start-maximized', // 창 최대화
+      '--window-size=1920,1080', // 기본 창 크기 설정
+      '--disable-web-security', // CORS 관련 보안 비활성화
+      '--allow-running-insecure-content', // 안전하지 않은 컨텐츠 허용
+    ],
+  });
 
-  // 목표 URL로 이동
-  await chrome.goto(source);
-  await chrome.getFullSize();
+  try {
+    // 목표 URL로 이동
+    await chrome.goto(source);
 
-  // * 로그인 화면 처리
-  await sleepAsync(50000);
+    // 페이지 로딩 대기 시간 증가
+    await chrome.driver.sleep(5000);
 
-  // 페이지 소스 가져오기
-  const html = await chrome.driver.getPageSource();
+    // 로그인 상태 확인
+    const isLoggedIn = await chrome.driver.executeScript(() => {
+      return document.querySelector('[data-testid="user-message"]') !== null;
+    });
 
-  const cheerio = new Cheerio(html);
-  const title = cheerio.value('head title');
-  // 전체 대화 컨테이너 선택
-  const content = cheerio.outerHtml('div.flex-1.overflow-hidden');
-  let markdown = `---\ntitle: ${title}\nemail: ${email}\nsource: ${source}\n---\n\n`;
-  markdown += convertClaudeHtmlToMarkdown(content);
+    if (!isLoggedIn) {
+      console.log('로그인이 필요합니다. 수동으로 로그인해주세요.');
+      await chrome.driver.sleep(50000); // 수동 로그인을 위한 대기
+    }
 
-  await chrome.close();
-  return { title, content, markdown };
+    await chrome.getFullSize();
+
+    // 페이지 소스 가져오기
+    const html = await chrome.driver.getPageSource();
+
+    const cheerio = new Cheerio(html);
+    const title = cheerio.value('head title');
+    const content = cheerio.outerHtml('div.flex-1.overflow-hidden');
+    let markdown = `---\ntitle: ${title}\nemail: ${email}\nsource: ${source}\n---\n\n`;
+    markdown += convertClaudeHtmlToMarkdown(content);
+
+    return { title, content, markdown };
+  } finally {
+    await chrome.close();
+  }
 };
 
 export { fetchFromClaude };
