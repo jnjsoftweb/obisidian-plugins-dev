@@ -8,7 +8,12 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
     "express": "^4.18.2",
-    "node-fetch": "^2.7.0"
-  }
+    "jnj-utils": "^0.0.18",
+    "jsdom": "^26.0.0",
+    "node-fetch": "^2.7.0",
+    "turndown": "^7.2.0"
+  },
+  "type": "module"
 }

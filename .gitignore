@@ -4,3 +4,7 @@ dist/
 
 # user, macos
 _*/
+_*
+
+# secrets
+.env
