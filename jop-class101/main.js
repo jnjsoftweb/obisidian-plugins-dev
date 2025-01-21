@@ -343,7 +343,7 @@ class Class101Plugin extends Plugin {
     return name
       .replace(/\[/g, '(')
       .replace(/\]/g, ')')
-      .replace(/[^\uAC00-\uD7A3a-zA-Z0-9_\(\)\<\>\s]/g, '')
+      .replace(/[^\uAC00-\uD7A3a-zA-Z0-9_\(\)\<\>,\s]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   }

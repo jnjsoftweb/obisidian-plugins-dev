@@ -5,9 +5,9 @@ import { Chrome, sleepAsync, saveJson, Cheerio } from 'jnj-utils';
 import { chromeOptions, selectors, defaultEmail } from './settings.js';
 
 // * markdown
-// 이스케이프된 대괄호를 정상적인 대괄호로 변환
-const unescapeBrackets = (markdown) => {
-  return markdown.replace(/\\\[/g, '[').replace(/\\\]/g, ']');
+// 이스케이프 문자 제거 함수
+const removeEscapes = (markdown) => {
+  return markdown.replace(/\\([[\].])/g, '$1'); // \[, \], \. 등의 이스케이프 제거
 };
 
 const createGensparkTurndownService = () => {
@@ -52,39 +52,38 @@ const convertGensparkHtmlToMarkdown = (html) => {
   let markdownContent = '';
 
   // 메시지 쌍을 찾습니다
-  const messages = doc.querySelectorAll('div[data-v-6a624014]');
+  const userMessages = doc.querySelectorAll('.conversation-statement.user .content');
+  const assistantMessages = doc.querySelectorAll('.conversation-statement.assistant .content');
 
-  messages.forEach((message) => {
-    const userMessage = message.querySelector('.user-message');
-    const assistantMessage = message.querySelector('.assistant-message');
+  for (let i = 0; i < userMessages.length; i++) {
+    // 사용자 메시지 처리
+    markdownContent += '## user prompt\n\n';
+    const userContent = userMessages[i].innerHTML;
+    const userMarkdown = turndownService
+      .turndown(userContent)
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/```/g, '~~~')
+      .split('\n')
+      .map((line) => line.trim())
+      .join('\n');
 
-    if (userMessage) {
-      markdownContent += '## user prompt\n\n';
-      const userContent = userMessage.innerHTML;
-      const userMarkdown = turndownService
-        .turndown(userContent)
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/```/g, '~~~')
-        .split('\n')
-        .map((line) => line.trim())
-        .join('\n');
-
-      if (!userMarkdown.includes('~~~')) {
-        markdownContent += '~~~\n' + userMarkdown + '\n~~~\n\n';
-      } else {
-        markdownContent += userMarkdown + '\n\n';
-      }
+    if (!userMarkdown.includes('~~~')) {
+      markdownContent += '~~~\n' + userMarkdown + '\n~~~\n\n';
+    } else {
+      markdownContent += userMarkdown + '\n\n';
     }
 
-    if (assistantMessage) {
+    // 어시스턴트 메시지 처리
+    if (assistantMessages[i]) {
       markdownContent += '## assistant says\n\n';
-      markdownContent += turndownService.turndown(assistantMessage.innerHTML) + '\n\n';
+      let assistantMarkdown = turndownService.turndown(assistantMessages[i].innerHTML);
+      markdownContent += removeEscapes(assistantMarkdown) + '\n\n';
     }
 
     markdownContent += '---\n\n';
-  });
+  }
 
-  return unescapeBrackets(markdownContent);
+  return removeEscapes(markdownContent);
 };
 
 // * fetch
@@ -130,7 +129,7 @@ const fetchFromGenspark = async (source, email = defaultEmail) => {
     const cheerio = new Cheerio(html);
     const title = cheerio.value('head title');
     const content = cheerio.outerHtml('.index-layout-content');
-    let markdown = `---\ntitle: ${title}\nemail: ${email}\nsource: ${source}\n---\n\n`;
+    let markdown = `---\ntitle: ${title}\nemail: ${email}\nsource: ${source}\ntags:\n  - aichat/genspark\n---\n\n`;
     markdown += convertGensparkHtmlToMarkdown(content);
 
     return { title, content, markdown };

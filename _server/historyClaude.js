@@ -1,7 +1,7 @@
 import TurndownService from 'turndown';
 import { JSDOM } from 'jsdom';
 
-import { Chrome, sleepAsync, saveJson, Cheerio } from 'jnj-utils';
+import { Chrome, sleepAsync, saveJson, saveFile, Cheerio } from 'jnj-utils';
 import { chromeOptions, selectors, defaultEmail } from './settings.js';
 
 // * markdown
@@ -68,36 +68,38 @@ const createClaudeTurndownService = () => {
 
 const convertClaudeHtmlToMarkdown = (html) => {
   const dom = new JSDOM(html);
-  const doc = dom.window.document;
+  const document = dom.window.document;
   const turndownService = createClaudeTurndownService();
 
   let markdownContent = '';
 
-  // 선택자 수정
-  const userMessages = doc.querySelectorAll('[data-testid="user-message"]');
-  const claudeResponses = doc.querySelectorAll('[data-test-render-count]');
+  // 채팅 컨테이너 찾기 (data-test-render-count="3" 요소들)
+  const chatContainers = document.querySelectorAll('[data-test-render-count="3"]');
+  console.log('채팅 컨테이너 수:', chatContainers.length);
 
-  // 메시지 쌍 처리
-  for (let i = 0; i < userMessages.length; i++) {
-    markdownContent += '## user prompt\n\n';
-    markdownContent += processUserMessage(userMessages[i]);
-    markdownContent += '## claude says\n\n';
-
-    // Claude 응답 찾기 - 현재 user message 다음에 오는 응답
-    let claudeResponse = userMessages[i]
-      .closest('[data-test-render-count]')
-      ?.nextElementSibling?.querySelector('[data-test-render-count]');
-
-    if (claudeResponse) {
-      markdownContent += `${turndownService.turndown(claudeResponse.innerHTML)}\n\n`;
-    } else {
-      markdownContent += '답변 없음\n\n';
+  chatContainers.forEach((container) => {
+    // 사용자 메시지 찾기 (data-testid="user-message" 속성을 가진 요소)
+    const userMessage = container.querySelector('[data-testid="user-message"]');
+    if (userMessage) {
+      markdownContent += '\n\n# user prompt\n\n';
+      const messageText = userMessage.querySelector('.whitespace-pre-wrap.break-words');
+      if (messageText) {
+        markdownContent += '~~~\n' + messageText.textContent.trim() + '\n~~~\n\n';
+      }
     }
 
-    markdownContent += '---\n\n';
-  }
+    // 어시스턴트 응답 찾기 (data-is-streaming 속성을 가진 요소)
+    const assistantMessage = container.querySelector('[data-is-streaming]');
+    if (assistantMessage) {
+      markdownContent += '\n\n# assistant says\n\n';
+      const messageContent = assistantMessage.querySelector('.font-claude-message');
+      if (messageContent) {
+        markdownContent += turndownService.turndown(messageContent.innerHTML) + '\n\n';
+      }
+    }
+  });
 
-  return unescapeBrackets(markdownContent);
+  return unescapeBrackets(markdownContent.trim());
 };
 
 const processUserMessage = (userMessageNode) => {
@@ -132,20 +134,17 @@ const fetchFromClaude = async (source, email = defaultEmail) => {
       '--disable-gpu',
       '--no-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-blink-features=AutomationControlled', // 자동화 감지 비활성화
-      '--disable-extensions', // 확장 프로그램 비활성화
-      '--start-maximized', // 창 최대화
-      '--window-size=1920,1080', // 기본 창 크기 설정
-      '--disable-web-security', // CORS 관련 보안 비활성화
-      '--allow-running-insecure-content', // 안전하지 않은 컨텐츠 허용
+      '--disable-blink-features=AutomationControlled',
+      '--disable-extensions',
+      '--start-maximized',
+      '--window-size=1920,1080',
+      '--disable-web-security',
+      '--allow-running-insecure-content',
     ],
   });
 
   try {
-    // 목표 URL로 이동
     await chrome.goto(source);
-
-    // 페이지 로딩 대기 시간 증가
     await chrome.driver.sleep(5000);
 
     // 로그인 상태 확인
@@ -155,24 +154,56 @@ const fetchFromClaude = async (source, email = defaultEmail) => {
 
     if (!isLoggedIn) {
       console.log('로그인이 필요합니다. 수동으로 로그인해주세요.');
-      await chrome.driver.sleep(50000); // 수동 로그인을 위한 대기
+      await chrome.driver.sleep(50000);
     }
 
     await chrome.getFullSize();
 
-    // 페이지 소스 가져오기
+    // 전체 페이지 소스 가져오기
     const html = await chrome.driver.getPageSource();
 
     const cheerio = new Cheerio(html);
     const title = cheerio.value('head title');
-    const content = cheerio.outerHtml('div.flex-1.overflow-hidden');
-    let markdown = `---\ntitle: ${title}\nemail: ${email}\nsource: ${source}\n---\n\n`;
-    markdown += convertClaudeHtmlToMarkdown(content);
 
-    return { title, content, markdown };
+    // 전체 HTML을 markdown으로 변환
+    let markdown = `---\ntitle: ${title}\nemail: ${email}\nsource: ${source}\n---\n\n`;
+    markdown += convertClaudeHtmlToMarkdown(html);
+
+    return { title, content: html, markdown };
   } finally {
     await chrome.close();
   }
 };
 
 export { fetchFromClaude };
+
+// * test
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+// // 테스트 실행
+// const testClaudeConversion = () => {
+//   console.log('=== Claude 변환 테스트 시작 ===');
+
+//   try {
+//     // HTML 파일 읽기
+//     const htmlPath = join(process.cwd(), 'html/claude_1.html');
+//     const html = readFileSync(htmlPath, 'utf-8');
+//     console.log('HTML 파일 로드 완료:', htmlPath);
+
+//     // 마크다운으로 변환
+//     const markdown = convertClaudeHtmlToMarkdown(html);
+
+//     // 결과 저장
+//     const outputPath = join(process.cwd(), 'downloads/claude_test_output.md');
+//     saveFile(outputPath, markdown);
+//     console.log('마크다운 파일 저장 완료:', outputPath);
+//   } catch (error) {
+//     console.error('테스트 중 오류 발생:', error);
+//   }
+
+//   console.log('=== Claude 변환 테스트 종료 ===');
+// };
+
+// // 테스트 실행
+// testClaudeConversion();
