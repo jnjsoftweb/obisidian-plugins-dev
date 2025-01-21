@@ -132,3 +132,36 @@ tags:
 - `<h2 data-testid="title" class="css-ab1zeh">그레이스캘리</h2>`와 같은 요소에서 '그레이스캘리'를 추출하고,
 - 노트 제목을 '그레이스캘리_creator'로 변경
 3. 한 줄에 '###',  '-' 와 같이 실제 내용이 없는 라인 삭제
+
+
+---
+
+## 클래스 목록 페이지
+
+- 아래와 같이 class101 클래스(myclass) 목록 페이지를 추가 구현해주세요. 
+- 기존 명령과는 별도의 명령으로 실행될 수 있도록 해주세요.
+
+
+### data fetch(json 데이터 소스)
+http://125.133.148.194:4000/lecture/_repo/class101/json/myclasses.json
+
+### markdown path(저장 경로)
+
+- 33. RESOURCES/Lecures/class101/myclasses.md
+
+### markdown template
+
+~~~
+---
+title: class101
+tags: 
+  - lecture/class101
+---
+
+## 클래스 목록
+
+{{myclasses}}
+~~~
+
+
+`{{myclasses}}` 은 json 데이터를 표형식으로 나타내주세요.

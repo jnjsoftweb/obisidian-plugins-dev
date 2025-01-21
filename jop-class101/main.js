@@ -10,7 +10,7 @@ const DEFAULT_SETTINGS = {
   noteFolder: 'notes',
   scriptFolder: 'scripts',
   classFolder: 'classes',
-  overwrite: true,
+  overwrite: false,
 };
 
 class Class101Plugin extends Plugin {
@@ -39,6 +39,13 @@ class Class101Plugin extends Plugin {
       id: 'process-in-file',
       name: 'Process Classes from Current File',
       callback: () => this.processInFile(),
+    });
+
+    // 클래스 목록 생성 명령어 추가
+    this.addCommand({
+      id: 'create-class-list',
+      name: 'Create Class List',
+      callback: () => this.createClassList(),
     });
   }
 
@@ -749,7 +756,11 @@ ${lectureList}
         filename: `${sanitizedClassTitle}_kit.md`,
         title: '준비물',
         process: (content) => {
-          return content.replace(/<button[^>]*>더보기<\/button>/g, '');
+          // '더보기' 버튼 제거
+          content = content.replace(/<button[^>]*>더보기<\/button>/g, '');
+          // 마지막 '더보기' 텍스트 제거
+          content = content.replace(/더보기\s*$/, '');
+          return content;
         },
       },
       {
@@ -1109,6 +1120,52 @@ ${markdown.trim()}`;
     } catch (error) {
       console.error('Error in processInFile:', error);
       new Notice('클래스 처리 중 오류가 발생했습니다.');
+    }
+  }
+
+  // 클래스 목록 생성 함수
+  async createClassList() {
+    try {
+      new Notice('클래스 목록을 생성하고 있습니다...');
+
+      // JSON 데이터 가져오기
+      const jsonUrl = `${this.settings.baseUrl}/lecture/_repo/class101/json/myclasses.json`;
+      const response = await fetch(jsonUrl);
+      const classes = await response.json();
+
+      // 테이블 헤더 생성
+      let tableContent = '| 제목 | 카테고리 | 크리에이터 | 링크 |\n';
+      tableContent += '|------|-----------|------------|------|\n';
+
+      // 클래스 정보로 테이블 행 생성
+      for (const classInfo of classes) {
+        const title = classInfo.title.replace(/\|/g, '\\|'); // 파이프 문자 이스케이프
+        const category = classInfo.categoryTitle?.replace(/\|/g, '\\|') || '';
+        const creator = classInfo.creatorName?.replace(/\|/g, '\\|') || '';
+        const link = `[[${this.sanitizeName(title)}|🔗]]`;
+
+        tableContent += `| ${title} | ${category} | ${creator} | ${link} |\n`;
+      }
+
+      // 마크다운 파일 생성
+      const content = `---
+title: class101
+tags: 
+  - lecture/class101
+---
+
+## 클래스 목록
+
+${tableContent}`;
+
+      // 파일 저장
+      const filePath = path.join(this.settings.rootDir, 'myclasses.md');
+      await this.createFileWithOverwriteCheck(filePath, content);
+
+      new Notice('클래스 목록이 생성되었습니다.');
+    } catch (error) {
+      console.error('Error creating class list:', error);
+      new Notice('클래스 목록 생성 중 오류가 발생했습니다.');
     }
   }
 }
