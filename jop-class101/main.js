@@ -10,7 +10,7 @@ const DEFAULT_SETTINGS = {
   noteFolder: 'notes',
   scriptFolder: 'scripts',
   classFolder: 'classes',
-  overwrite: true,
+  overwrite: false,
 };
 
 class Class101Plugin extends Plugin {
@@ -39,6 +39,13 @@ class Class101Plugin extends Plugin {
       id: 'process-in-file',
       name: 'Process Classes from Current File',
       callback: () => this.processInFile(),
+    });
+
+    // 클래스 목록 생성 명령어 추가
+    this.addCommand({
+      id: 'create-class-list',
+      name: 'Create Class List',
+      callback: () => this.createClassList(),
     });
   }
 
@@ -180,7 +187,7 @@ class Class101Plugin extends Plugin {
       }
 
       // 클래스 인덱스 파일 생성 (limitedLectures 사용)
-      const classIndexContent = this.createClassIndexContent({
+      const classIndexContent = await this.createClassIndexContent({
         classTitle,
         noteTitles,
         category,
@@ -636,21 +643,184 @@ tags: {{tags}}
     }
   }
 
-  createClassIndexContent(data) {
+  async createClassIndexContent(data) {
     const { classTitle, noteTitles, category, sanitizedClassTitle } = data;
 
-    const lectureList = noteTitles.map((noteTitle) => `### [[${noteTitle}]]`).join('\n\n');
+    try {
+      // HTML 데이터 가져오기
+      const homeUrl = `${this.settings.baseUrl}/lecture/_repo/class101/html/classes/${this.currentClassId}/home.html`;
+      const response = await fetch(homeUrl);
+      const html = await response.text();
 
-    return `---
-title: ${classTitle}
+      // HTML 파싱
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // 크리에이터 섹션에서 정확한 CSS 클래스를 가진 h2 태그로 이름 추출
+      const creatorSection = doc.querySelector('section#creator');
+      const creatorElement = creatorSection?.querySelector('h2[data-testid="title"].css-ab1zeh');
+      const creatorName = creatorElement ? creatorElement.textContent.trim() : 'Unknown Creator';
+      const sanitizedCreatorName = this.sanitizeName(creatorName);
+
+      // 각 섹션별 마크다운 파일 생성
+      await this.createSectionFiles({
+        html,
+        classId: this.currentClassId,
+        sanitizedClassTitle,
+        creatorName,
+        basePath: this.settings.rootDir,
+      });
+
+      // 강의 목록 생성
+      const lectureList = noteTitles.map((noteTitle) => `### [[${noteTitle}]]`).join('\n\n');
+
+      // source URL 생성
+      const source = `https://class101.net/ko/classes/${this.currentClassId}`;
+
+      return `---
+title: "${classTitle}"
+source: ${source}
 category: ${category}
-tags: class101
+tags: 
+  - class101/class
 ---
 
-## 강의 목록
+## 클래스 소개
+
+[[${sanitizedClassTitle}_intro|클래스 소개]]
+
+
+## 준비물
+
+[[${sanitizedClassTitle}_kit|준비물]]
+
+
+## 커리큘럼
 
 ${lectureList}
-`;
+
+
+## 크리에이터
+
+[[${sanitizedCreatorName}_creator|${creatorName}]]`;
+    } catch (error) {
+      console.error('Error creating class index content:', error);
+      throw error;
+    }
+  }
+
+  async createSectionFiles({ html, classId, sanitizedClassTitle, creatorName, basePath }) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const sanitizedCreatorName = this.sanitizeName(creatorName);
+
+    // 이미지 URL에서 ID 추출하는 함수
+    const extractImageId = (srcset) => {
+      const match = srcset.match(/images\/([^\/]+)/);
+      return match ? match[1] : null;
+    };
+
+    // 이미지 처리 함수
+    const processImages = (content) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, 'text/html');
+
+      // picture 태그 찾기
+      const pictures = doc.querySelectorAll('picture');
+      pictures.forEach((picture) => {
+        const source = picture.querySelector('source');
+        if (source && source.getAttribute('srcset')) {
+          const imageId = extractImageId(source.getAttribute('srcset'));
+          if (imageId) {
+            const markdown = `![${imageId}](https://cdn.class101.net/images/${imageId}/1080xauto.webp)`;
+            picture.outerHTML = markdown;
+          }
+        }
+      });
+
+      return doc.body.innerHTML;
+    };
+
+    // 각 섹션별 파일 생성
+    const sections = [
+      {
+        id: 'class_description',
+        folder: 'intros',
+        filename: `${sanitizedClassTitle}_intro.md`,
+        title: '클래스 소개',
+        process: processImages,
+      },
+      {
+        id: 'kit',
+        folder: 'kits',
+        filename: `${sanitizedClassTitle}_kit.md`,
+        title: '준비물',
+        process: (content) => {
+          // '더보기' 버튼 제거
+          content = content.replace(/<button[^>]*>더보기<\/button>/g, '');
+          // 마지막 '더보기' 텍스트 제거
+          content = content.replace(/더보기\s*$/, '');
+          return content;
+        },
+      },
+      {
+        id: 'creator',
+        folder: 'creators',
+        filename: `${sanitizedCreatorName}_creator.md`,
+        title: creatorName,
+        process: processImages,
+      },
+    ];
+
+    for (const section of sections) {
+      try {
+        // 섹션 내용 추출
+        const sectionElement = doc.querySelector(`section#${section.id}`);
+        if (!sectionElement) {
+          console.log(`Section ${section.id} not found`);
+          continue;
+        }
+
+        // 섹션별 특수 처리 적용
+        let processedHtml = section.process(sectionElement.outerHTML);
+
+        // 마크다운으로 변환
+        let markdown = await this.convertHtmlToMarkdown(processedHtml);
+
+        // '### 수업 노트' 제거
+        markdown = markdown.replace(/### 수업 노트\n*/g, '');
+
+        // 빈 헤더나 리스트 항목 제거
+        markdown = markdown
+          .split('\n')
+          .filter((line) => {
+            const trimmedLine = line.trim();
+            return !(trimmedLine === '###' || trimmedLine === '-' || trimmedLine === '##' || trimmedLine === '#');
+          })
+          .join('\n');
+
+        // 연속된 빈 줄 제거
+        markdown = markdown.replace(/\n{3,}/g, '\n\n');
+
+        // 폴더 생성
+        const folderPath = path.join(basePath, section.folder);
+        await this.ensureFolder(folderPath);
+
+        // 파일 생성
+        const filePath = path.join(folderPath, section.filename);
+        const content = `---
+title: ${section.title}
+tags:
+  - class101/${section.folder}
+---
+
+${markdown.trim()}`;
+
+        await this.createFileWithOverwriteCheck(filePath, content);
+      } catch (error) {
+        console.error(`Error creating ${section.title} file:`, error);
+      }
+    }
   }
 
   // 깨진 한글 문자를 복원하는 메서드
@@ -950,6 +1120,52 @@ ${lectureList}
     } catch (error) {
       console.error('Error in processInFile:', error);
       new Notice('클래스 처리 중 오류가 발생했습니다.');
+    }
+  }
+
+  // 클래스 목록 생성 함수
+  async createClassList() {
+    try {
+      new Notice('클래스 목록을 생성하고 있습니다...');
+
+      // JSON 데이터 가져오기
+      const jsonUrl = `${this.settings.baseUrl}/lecture/_repo/class101/json/myclasses.json`;
+      const response = await fetch(jsonUrl);
+      const classes = await response.json();
+
+      // 테이블 헤더 생성
+      let tableContent = '| 제목 | 카테고리 | 크리에이터 | 링크 |\n';
+      tableContent += '|------|-----------|------------|------|\n';
+
+      // 클래스 정보로 테이블 행 생성
+      for (const classInfo of classes) {
+        const title = classInfo.title.replace(/\|/g, '\\|'); // 파이프 문자 이스케이프
+        const category = classInfo.categoryTitle?.replace(/\|/g, '\\|') || '';
+        const creator = classInfo.creatorName?.replace(/\|/g, '\\|') || '';
+        const link = `[[${this.sanitizeName(title)}|🔗]]`;
+
+        tableContent += `| ${title} | ${category} | ${creator} | ${link} |\n`;
+      }
+
+      // 마크다운 파일 생성
+      const content = `---
+title: class101
+tags: 
+  - lecture/class101
+---
+
+## 클래스 목록
+
+${tableContent}`;
+
+      // 파일 저장
+      const filePath = path.join(this.settings.rootDir, 'myclasses.md');
+      await this.createFileWithOverwriteCheck(filePath, content);
+
+      new Notice('클래스 목록이 생성되었습니다.');
+    } catch (error) {
+      console.error('Error creating class list:', error);
+      new Notice('클래스 목록 생성 중 오류가 발생했습니다.');
     }
   }
 }
